@@ -17,8 +17,8 @@
 
     - name: LOG IN TO OBTAIN ACCESS TOKEN 
       k8s_auth:
-        username: "uadmin"
-        password: "passw0rd1"
+        username: "{{ uocp_user }}"
+        password: "{{ ocp_passwd }}"
         host: "{{ ocp_host }}:{{ ocp_port }}"
         validate_certs: false
       register: k8s_auth_results
@@ -68,8 +68,8 @@
               name: "{{ item }}c"
               namespace: "{{ project_name }}"
             nfs:
-              path: /home/nfs300
-              server: 10.213.1.129
+              path: "{{ nfs_path }}"
+              server: "{{ nfs_server }}"
             persistentVolumeReclaimPolicy: Retain
             storageClassName: nfs-sc
       with_items: "{{ redis_vols }}"
