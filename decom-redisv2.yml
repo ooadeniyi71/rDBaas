@@ -1,0 +1,83 @@
+## decom-redisv2.yml##
+- hosts: localhost
+  module_defaults:
+    group/k8s:
+ #     host: "https://api.dell-sno.attlocal.net:6443"
+  tasks:
+  - block:
+    - include_vars: redis-vars.yml
+
+    - name: Bare include (free-form)
+      ansible.builtin.include_vars: redis-vars.yml
+
+    - name: INSTALL SYSTEM PYTHON3-KUBERNETS
+      apt:
+         name: python3-kubernetes
+         state: present
+
+    - name: LOG IN TO OBTAIN ACCESS TOKEN 
+      k8s_auth:
+        username: "uadmin"
+        password: "passw0rd1"
+        host: "{{ ocp_host }}:{{ ocp_port }}"
+        validate_certs: false
+      register: k8s_auth_results
+
+    - debug:
+         msg: "{{ k8s_auth_results.k8s_auth.api_key }}" 
+
+    - name: GET LIST OF PODS
+      k8s_info:
+        api_key: "{{ k8s_auth_results.k8s_auth.api_key }}"
+        kind: Pod
+        namespace: testing
+        validate_certs: false
+      register: pod_list
+
+    - debug:
+         msg: "{{ item }}" 
+      with_dict: "{{ pod_list }}"
+      when: item.key == "resources"
+
+    - name: DELETIN  k8s NAMESPACE
+      kubernetes.core.k8s:
+        api_key: "{{ k8s_auth_results.k8s_auth.api_key }}"
+        validate_certs: false
+        name: "{{ project_name }}"
+        api_version: v1
+        kind: Namespace
+        state: absent
+      register: ns_list
+
+
+    - name: DELETING PERSISTENT VOLUME(PV)
+      kubernetes.core.k8s:
+        state: absent
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "{{ item }}" 
+          spec:
+            accessModes:
+            - ReadWriteMany
+            capacity:
+               storage: 30Gi
+            claimRef:
+              apiVersion: v1
+              kind: PersistentVolumeClaim
+              name: "{{ item }}c"
+              namespace: "{{ project_name }}"
+            nfs:
+              path: /home/nfs300
+              server: 10.213.1.129
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: nfs-sc
+      with_items: "{{ redis_vols }}"
+     
+
+    - name: GET LIST OF PODs
+      command: "oc get all"
+      register: redis_pod
+    - debug:
+         var: redis_pod.stdout_lines 
