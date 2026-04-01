@@ -7,7 +7,7 @@
   - block:
     - include_vars: redis-vars.yml
 
-    - name: Bare include (free-form)
+    - name: INCLUDE VARIABLES
       ansible.builtin.include_vars: redis-vars.yml
 
     - name: INSTALL SYSTEM PYTHON3-KUBERNETS
