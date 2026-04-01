@@ -1,0 +1,20 @@
+project_name: testing  # default and can ENV variable
+ocp_host: https://api.dell-sno.attlocal.net
+ocp_port: 6443
+ocp_user: < udamin >  # OCP credentials
+ocp_passwd: < passw0rd1 > # OCP Credential
+redis_version: "redis:latest"
+redis_name: redis
+redis_app: redis
+redis_label: redis
+app_label: redis
+redis_secret: "redis-secret"
+redis_version: "redis:8.6"
+replica_count: 3
+nfs_path: "/home/nfs300"
+nfs_server: "10.213.1.129"
+redis_vols:
+     - "{{ project_name }}-redis-os-pv"
+     - "{{ project_name }}-redis-bkp-pv"
+     - "{{ project_name }}-redis-log-pv"
+     - "{{ project_name }}-redis-data-pv"
