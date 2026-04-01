@@ -67,19 +67,8 @@ The deployment ensures:
 
 ## Repository Structure
 ---------------------------
+<img width="776" height="758" alt="image" src="https://github.com/user-attachments/assets/fa0226e5-b2a3-4393-a6bf-7e0932b99c23" />
 
-├── ansible/
-│ ├── playbook.yml
-│ ├── roles/
-│ │ └── redis/
-│ │ ├── tasks/
-│ │ ├── templates/
-│ │ └── vars/
-├── manifests/
-│ ├── statefulset.yaml
-│ ├── service.yaml
-│ └── pvc.yaml
-└── README.md
 
 ----------------------------
 1. To depoly REDIS; Run as follow:
