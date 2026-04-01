@@ -21,35 +21,10 @@ The deployment ensures:
 - Each pod is backed by its own Persistent Volume
 - Ansible automates provisioning and deployment
 
-                    +----------------------+
-                  |   Ansible Control    |
-                  |  (Automation Engine) |
-                  +----------+-----------+
-                             |
-                             v
-                +--------------------------+
-                |   OpenShift Cluster      |
-                +--------------------------+
-                             |
-        -------------------------------------------------
-        |                |                |              |
-        v                v                v              v
+<img width="1184" height="916" alt="image" src="https://github.com/user-attachments/assets/5f49654e-0bf1-4608-8856-3ac48a539bc1" />
 
-   +----------+     +----------+     +----------+
-   | redis-0  |     | redis-1  |     | redis-2  |
-   |  Pod     |     |  Pod     |     |  Pod     |
-   +----+-----+     +----+-----+     +----+-----+
-        |                |                |
-        v                v                v
-   +----------+     +----------+     +----------+
-   |   PVC    |     |   PVC    |     |   PVC    |
-   | (Volume) |     | (Volume) |     | (Volume) |
-   +----------+     +----------+     +----------+
-
-              <---- Headless Service ---->
-              (Stable network identities)
-
----
+                 
+------------------------
 
 ## Prerequisites
 ----------------------
