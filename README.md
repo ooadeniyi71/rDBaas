@@ -21,7 +21,8 @@ The deployment ensures:
 - Each pod is backed by its own Persistent Volume
 - Ansible automates provisioning and deployment
 
-<img width="1184" height="916" alt="image" src="https://github.com/user-attachments/assets/5f49654e-0bf1-4608-8856-3ac48a539bc1" />
+<img width="804" height="1008" alt="image" src="https://github.com/user-attachments/assets/1b946cbf-f6aa-4c4d-81b8-1699f0eb7b30" />
+
 
                  
 ------------------------
