@@ -7,7 +7,7 @@
   - block:
     - include_vars: redis-vars.yml
 
-    - name: Bare include (free-form)
+    - name: INCLUDE VARIABLES
       ansible.builtin.include_vars: redis-vars.yml
 
     - name: INSTALL SYSTEM PYTHON3-KUBERNETS
@@ -49,7 +49,6 @@
         state: absent
       register: ns_list
 
-
     - name: DELETING PERSISTENT VOLUME(PV)
       kubernetes.core.k8s:
         state: absent
@@ -74,7 +73,6 @@
             persistentVolumeReclaimPolicy: Retain
             storageClassName: nfs-sc
       with_items: "{{ redis_vols }}"
-     
 
     - name: GET LIST OF PODs
       command: "oc get all"
