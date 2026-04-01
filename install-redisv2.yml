@@ -1,0 +1,218 @@
+## nstall-redisv2.yml##
+- hosts: localhost
+  module_defaults:
+    group/k8s:
+ #     host: "https://api.dell-sno.attlocal.net:6443"
+  tasks:
+  - block:
+    - include_vars: redis-vars.yml
+
+    - name: Bare include (free-form)
+      ansible.builtin.include_vars: redis-vars.yml
+
+    - name: INSTALL SYSTEM PYTHON3-KUBERNETS
+      apt:
+         name: python3-kubernetes
+         state: present
+
+    - name: LOG IN TO OBTAIN ACCESS TOKEN 
+      k8s_auth:
+        username: "uadmin"
+        password: "passw0rd1"
+        host: "{{ ocp_host }}:{{ ocp_port }}"
+        validate_certs: false
+      register: k8s_auth_results
+
+    - debug:
+         msg: "{{ k8s_auth_results.k8s_auth.api_key }}" 
+
+    - name: GET LIST OF PODS
+      k8s_info:
+        api_key: "{{ k8s_auth_results.k8s_auth.api_key }}"
+        kind: Pod
+        namespace: "{{ project_name }}"
+        validate_certs: false
+      register: pod_list
+
+    - debug:
+         msg: "{{ item }}" 
+      with_dict: "{{ pod_list }}"
+      when: item.key == "resources"
+
+    - name: CREATE  k8s NAMESPACE
+      kubernetes.core.k8s:
+        api_key: "{{ k8s_auth_results.k8s_auth.api_key }}"
+        validate_certs: false
+        name: "{{ project_name }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      register: ns_list
+
+    - name: CREATE A SECRET
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+             name: "{{ redis_secret }}"
+             namespace: "{{ project_name }}"
+             labels:
+               app: "{{ app_label }}"
+          type: Opaque
+          data:
+             REDIS_PASSWORD: 'cm9vdDIz' # pls use your own secret password 
+
+    - name: CREATE PERSISTENT VOLUME(PV)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "{{ item }}" 
+          spec:
+            accessModes:
+            - ReadWriteMany
+            capacity:
+               storage: 30Gi
+            claimRef:
+              apiVersion: v1
+              kind: PersistentVolumeClaim
+              name: "{{ item }}c"
+              namespace: "{{ project_name }}"
+            nfs:
+              path: "{{ nfs_path }}"
+              server: "{{ nfs_server }}"
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: nfs-sc
+      with_items: "{{ redis_vols }}"
+     
+    - name: CREATE PERSISTENT VOLUME CLAIM (PVC)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "{{ item }}c"
+            namespace: "{{ project_name }}"
+            labels:
+              app: "{{ redis_label }}"
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 30Gi
+            storageClassName: nfs-sc
+            volumeName: "{{ item }}"
+      with_items: "{{ redis_vols }}"
+
+    - name: ISNATLL REDIS STATEFULSET APP
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: "{{ redis_name }}-statefulset"
+            namespace: "{{ project_name }}"
+            labels:
+              app: "{{ app_label }}"
+          spec:
+            serviceName: "{{ redis_name }}"
+            replicas: "{{ replica_count }}"  # Set to 1 for a single instance
+            selector:
+              matchLabels:
+                app: "{{ redis_label }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ redis_label }}"
+              spec:
+                terminationGracePeriodSeconds: 30
+                containers:
+                - name: "{{ redis_name }}"
+                  image: "{{ redis_version }}"
+                imagePullSecrets:
+                - name: regrcred
+                  command: ["redis-server"]
+                  args:
+                    - "--port"
+                    - "6379"
+                    - "--dir"
+                    - "/mnt/redis/data"
+                    - "--logfile"
+                    - "/mnt/redis/log/redis-server.log"
+                    - "--appendonly"
+                    - "yes"
+                    - "--appendonly"
+                    - "$(REDIS_PASSWORD)"
+                  ports:
+                  - containerPort: 6379
+                  env:
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ redis_secret }}"
+                        key: REDIS_PASSWORD
+                  volumeMounts:
+                  - name: redis-data
+                    mountPath: /mnt/redis/data
+                  - name: redis-logs
+                    mountPath: /mnt/redis/log
+                  - name: redis-os
+                    mountPath: /var/opt/redis
+                  - name: redis-backup
+                    mountPath: /mnt/redis/redisbackup
+                  securityContext:
+                    fsGroup: 1004
+                    runAsNonRoot: true
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                        - ALL
+                    seccompProfile:
+                      type: RuntimeDefault
+                volumes:
+                - name: redis-data
+                  persistentVolumeClaim:
+                    claimName: "{{ project_name }}-redis-data-pvc"
+                - name: redis-os
+                  persistentVolumeClaim:
+                    claimName: "{{ project_name }}-redis-os-pvc"
+                - name: redis-logs
+                  persistentVolumeClaim:
+                    claimName: "{{ project_name }}-redis-log-pvc"
+                - name: redis-backup
+                  persistentVolumeClaim:
+                    claimName: "{{ project_name }}-redis-bkp-pvc"
+
+    - name: CREATING REDIS SERVICE 
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ redis_name }}-service"
+            namespace: "{{ project_name }}"
+            labels:
+              app: "{{ redis_label }}"
+          spec:
+            type: NodePort
+            ports:
+            - name: "{{ redis_name }}-statefulset"
+              protocol: TCP
+              port: 6379  # Redis default port
+              targetPort: 6379
+            selector:
+              app: "{{ redis_label }}"
+
+    - name: GET LIST OF PODs
+      command: "oc get all"
+      register: redis_pod
+    - debug:
+         var: redis_pod.stdout_lines 
